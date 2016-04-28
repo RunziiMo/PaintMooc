@@ -15,22 +15,41 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentTransaction;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
 import android.widget.ImageView;
+import android.widget.Toast;
 
-import com.runzii.paintmooc.ui.painter.fragments.StorageClientFragment;
+import com.afollestad.materialdialogs.MaterialDialog;
+import com.qiniu.android.http.ResponseInfo;
+import com.qiniu.android.storage.UpCancellationSignal;
+import com.qiniu.android.storage.UpCompletionHandler;
+import com.qiniu.android.storage.UpProgressHandler;
+import com.qiniu.android.utils.StringMap;
+import com.runzii.paintmooc.http.HttpCallBack;
+import com.runzii.paintmooc.http.HttpUtils;
+import com.runzii.paintmooc.http.ModelConstants;
+import com.runzii.paintmooc.model.UploadToken;
 import com.runzii.paintmooc.ui.painter.fragments.base.AvtivityBase;
+import com.runzii.paintmooc.utils.QiNiu;
 import com.runzii.paintmooc.utils.log.Log;
+import com.squareup.picasso.Picasso;
+
+import org.json.JSONObject;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
 
-public class MainActivity extends AvtivityBase {
+import butterknife.Bind;
+
+
+public class MainActivity extends AvtivityBase implements UpCancellationSignal, UpCompletionHandler, UpProgressHandler {
+
+    @Bind(R.id.iv_main)
+    ImageView iv;
 
     // A request code's purpose is to match the result of a "startActivityForResult" with
     // the type of the original request.  Choose any value.
@@ -38,21 +57,52 @@ public class MainActivity extends AvtivityBase {
 
     public static final String TAG = "StorageClientFragment";
 
+    public static Uri uri = null;
+
+    @Override
+    protected int getLayoutId() {
+        return R.layout.activity_main;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-
-        setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        uploadDialog =
+                new MaterialDialog.Builder(this).
+                        title("正在上传").
+                        content("上传进度").
+                        progress(false, 100, showMinMax).
+                        build();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+//                        .setAction("Action", null).show();
+                HttpUtils.GET(ModelConstants.QINIUTOKEN, MainActivity.this, new HttpCallBack<String>() {
+                    @Override
+                    public void onSuccess(String uploadToken) {
+                        if (uri != null) {
+                            Toast.makeText(MainActivity.this, "token = " + uploadToken, Toast.LENGTH_SHORT).show();
+                            QiNiu.PUT(uploadToken, uri, MainActivity.this, MainActivity.this, MainActivity.this);
+                        }
+                    }
+
+                    @Override
+                    public void onFailed(String reason) {
+
+                    }
+
+                    @Override
+                    public void onError(int statusCode) {
+                        Toast.makeText(MainActivity.this, String.valueOf(statusCode), Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
     }
@@ -116,156 +166,40 @@ public class MainActivity extends AvtivityBase {
             if (resultData != null) {
                 uri = resultData.getData();
                 Log.i(TAG, "Uri: " + uri.toString());
-                showImage(uri);
+                Picasso.with(this).load(uri).into(iv);
+                this.uri = uri;
             }
         }
     }
 
-    /**
-     * Given the URI of an image, shows it on the screen using a DialogFragment.
-     *
-     * @param uri the Uri of the image to display.
-     */
-    public void showImage(Uri uri) {
-        if (uri != null) {
-            // Since the URI is to an image, create and show a DialogFragment to display the
-            // image to the user.
-            FragmentManager fm = getSupportFragmentManager();
-            ImageDialogFragment imageDialog = new ImageDialogFragment();
-            Bundle fragmentArguments = new Bundle();
-            fragmentArguments.putParcelable("URI", uri);
-            imageDialog.setArguments(fragmentArguments);
-            imageDialog.show(fm, "image_dialog");
+    @Override
+    public boolean isCancelled() {
+        return false;
+    }
+
+    @Override
+    public void complete(String key, ResponseInfo info, JSONObject response) {
+
+        uploadDialog.setContent(response.toString());
+        Toast.makeText(this, "上传完成", Toast.LENGTH_LONG).show();
+    }
+
+    // Create and show a non-indeterminate dialog with a max value of 150
+// If the showMinMax parameter is true, a min/max ratio will be shown to the left of the seek bar.
+    boolean showMinMax = true;
+
+    private MaterialDialog uploadDialog;
+
+    @Override
+    public void progress(String key, double percent) {
+
+        if (!uploadDialog.isShowing()) {
+            uploadDialog.show();
         }
+
+        uploadDialog.setProgress((int) (100 * percent));
+
     }
 
 
-    /**
-     * DialogFragment which displays an image, given a URI.
-     */
-    public static class ImageDialogFragment extends DialogFragment {
-        private Dialog mDialog;
-        private Uri mUri;
-
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            mUri = getArguments().getParcelable("URI");
-        }
-
-        /** Create a Bitmap from the URI for that image and return it.
-         *
-         * @param uri the Uri for the image to return.
-         */
-        private Bitmap getBitmapFromUri(Uri uri) {
-            ParcelFileDescriptor parcelFileDescriptor = null;
-            try {
-                parcelFileDescriptor =
-                        getActivity().getContentResolver().openFileDescriptor(uri, "r");
-                FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
-                Bitmap image = BitmapFactory.decodeFileDescriptor(fileDescriptor);
-                parcelFileDescriptor.close();
-                return image;
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to load image.", e);
-                return null;
-            } finally {
-                try {
-                    if (parcelFileDescriptor != null) {
-                        parcelFileDescriptor.close();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Log.e(TAG, "Error closing ParcelFile Descriptor");
-                }
-            }
-        }
-
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            mDialog = super.onCreateDialog(savedInstanceState);
-            // To optimize for the "lightbox" style layout.  Since we're not actually displaying a
-            // title, remove the bar along the top of the fragment where a dialog title would
-            // normally go.
-            mDialog.getWindow().requestFeature(Window.FEATURE_NO_TITLE);
-            final ImageView imageView = new ImageView(getActivity());
-            mDialog.setContentView(imageView);
-
-            // Loading the image is going to require some sort of I/O, which must occur off the UI
-            // thread.  Changing the ImageView to display the image must occur ON the UI thread.
-            // The easiest way to divide up this labor is with an AsyncTask.  The doInBackground
-            // method will run in a separate thread, but onPostExecute will run in the main
-            // UI thread.
-            AsyncTask<Uri, Void, Bitmap> imageLoadAsyncTask = new AsyncTask<Uri, Void, Bitmap>() {
-                @Override
-                protected Bitmap doInBackground(Uri... uris) {
-                    dumpImageMetaData(uris[0]);
-                    return getBitmapFromUri(uris[0]);
-                }
-
-                @Override
-                protected void onPostExecute(Bitmap bitmap) {
-                    imageView.setImageBitmap(bitmap);
-                }
-            };
-            imageLoadAsyncTask.execute(mUri);
-
-            return mDialog;
-        }
-
-        @Override
-        public void onStop() {
-            super.onStop();
-            if (getDialog() != null) {
-                getDialog().dismiss();
-            }
-        }
-
-        /**
-         * Grabs metadata for a document specified by URI, logs it to the screen.
-         *
-         * @param uri The uri for the document whose metadata should be printed.
-         */
-        public void dumpImageMetaData(Uri uri) {
-
-            // The query, since it only applies to a single document, will only return one row.
-            // no need to filter, sort, or select fields, since we want all fields for one
-            // document.
-            Cursor cursor = getActivity().getContentResolver()
-                    .query(uri, null, null, null, null, null);
-
-            try {
-                // moveToFirst() returns false if the cursor has 0 rows.  Very handy for
-                // "if there's anything to look at, look at it" conditionals.
-                if (cursor != null && cursor.moveToFirst()) {
-
-                    // Note it's called "Display Name".  This is provider-specific, and
-                    // might not necessarily be the file name.
-                    String displayName = cursor.getString(
-                            cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
-                    Log.i(TAG, "Display Name: " + displayName);
-
-                    int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
-                    // If the size is unknown, the value stored is null.  But since an int can't be
-                    // null in java, the behavior is implementation-specific, which is just a fancy
-                    // term for "unpredictable".  So as a rule, check if it's null before assigning
-                    // to an int.  This will happen often:  The storage API allows for remote
-                    // files, whose size might not be locally known.
-                    String size = null;
-                    if (!cursor.isNull(sizeIndex)) {
-                        // Technically the column stores an int, but cursor.getString will do the
-                        // conversion automatically.
-                        size = cursor.getString(sizeIndex);
-                    } else {
-                        size = "Unknown";
-                    }
-                    Log.i(TAG, "Size: " + size);
-                }
-            } finally {
-                if (cursor != null) {
-                    cursor.close();
-                }
-            }
-        }
-    }
 }

@@ -9,6 +9,7 @@ import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.PersistentCookieStore;
 import com.loopj.android.http.TextHttpResponseHandler;
 import com.runzii.paintmooc.model.UploadToken;
+import com.runzii.paintmooc.utils.log.Log;
 
 import cz.msebera.android.httpclient.Header;
 
@@ -58,7 +59,7 @@ public class HttpUtils {
         }
         switch (modelConstants) {
             case QINIUTOKEN:
-
+                getToken(callBack);
                 break;
         }
     }
@@ -67,12 +68,14 @@ public class HttpUtils {
         httpClient.get(APIs.generateUrl(APIs.UPLOADTOKEN), new TextHttpResponseHandler() {
             @Override
             public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
+                Log.i("HttpUtils", "statisCode");
                 callBack.onError(statusCode);
             }
 
             @Override
             public void onSuccess(int statusCode, Header[] headers, String responseString) {
-                callBack.onSuccess(JSON.parseObject(responseString, UploadToken.class));
+                Log.i("HttpUtils", responseString);
+                callBack.onSuccess(responseString);
             }
         });
     }

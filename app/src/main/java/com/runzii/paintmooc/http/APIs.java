@@ -8,7 +8,7 @@ import com.runzii.paintmooc.manage.AppSettings;
 public class APIs {
 
 
-    public static final String UPLOADTOKEN = "uploadtoken";
+    public static final String UPLOADTOKEN = "gettoken";
 
     public static String generateUrl(String api){
         return baseUrl+api;

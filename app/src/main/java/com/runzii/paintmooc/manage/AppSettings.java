@@ -5,7 +5,7 @@ package com.runzii.paintmooc.manage;
  */
 public class AppSettings {
 
-    public static final String SERVER_IP = "127.0.0.1";
-    public static final int SERVER_PORT = 8080;
+    public static final String SERVER_IP = "120.27.54.84";
+    public static final int SERVER_PORT = 8081;
 
 }
