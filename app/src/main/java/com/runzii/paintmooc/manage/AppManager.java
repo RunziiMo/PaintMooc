@@ -20,10 +20,6 @@ public class AppManager {
         return appContext;
     }
 
-    public static void setAppContext(Context appContext) {
-        AppManager.appContext = appContext;
-    }
-
     //包名
     private static String pkgName;
 

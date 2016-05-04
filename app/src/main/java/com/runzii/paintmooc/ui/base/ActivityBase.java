@@ -1,4 +1,4 @@
-package com.runzii.paintmooc.ui.painter.fragments.base;
+package com.runzii.paintmooc.ui.base;
 
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -9,7 +9,7 @@ import butterknife.ButterKnife;
 /**
  * Created by runzii on 16-4-13.
  */
-public abstract class AvtivityBase extends AppCompatActivity {
+public abstract class ActivityBase extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -18,10 +18,6 @@ public abstract class AvtivityBase extends AppCompatActivity {
             setContentView(getLayoutId());
         }
         ButterKnife.bind(this);
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
     }
 
     protected abstract int getLayoutId();

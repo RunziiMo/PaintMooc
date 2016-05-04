@@ -11,6 +11,10 @@ import com.runzii.paintmooc.manage.AppManager;
 public class Toasts {
 
     public static void show(String msg) {
-        Toast.makeText(AppManager.getAppContext(), msg, Toast.LENGTH_LONG).show();
+        Toast.makeText(AppManager.getAppContext(), msg, Toast.LENGTH_SHORT).show();
+    }
+
+    public static void show(int msg) {
+        Toast.makeText(AppManager.getAppContext(), String.valueOf(msg), Toast.LENGTH_SHORT).show();
     }
 }

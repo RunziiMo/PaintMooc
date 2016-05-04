@@ -20,40 +20,20 @@ import java.util.Map;
 /**
  * Created by runzii on 16-4-13.
  */
-public class QiNiu implements UpCancellationSignal, UpProgressHandler {
+public class UploadUtils {
 
     private static UploadManager uploadManager;
-
-    private static UploadOptions options;
-
-    {
-        Map<String, String> params = new HashMap<>();
-        params.put("x:cid", "1");
-        params.put("x:videoname", "操逼课之如何插入");
-        options = new UploadOptions(params, null, false, this, this);
-    }
 
     public static void PUT(String token, Uri uri, UpCompletionHandler completionHandler, UpCancellationSignal signal, UpProgressHandler progressHandler) {
         if (uploadManager == null) {
             uploadManager = new UploadManager();
         }
-        uploadManager.put(new File(uri.getPath()), "hello", token,
-                new UpCompletionHandler() {
-                    @Override
-                    public void complete(String key, ResponseInfo info, JSONObject response) {
-                        Log.i("qiniu", key + ",\r\n " + info + ",\r\n " + response);
-                    }
-                }, null);
+        Map<String, String> params = new HashMap<>();
+        params.put("x:cid", "2");
+        params.put("x:videoname", "操逼课之如何插入");
+        UploadOptions options = new UploadOptions(params, null, false, progressHandler, signal);
+        uploadManager.put(FileUtils.getRealPathFromURI(uri), null, token,
+                completionHandler, options);
     }
 
-
-    @Override
-    public boolean isCancelled() {
-        return false;
-    }
-
-    @Override
-    public void progress(String key, double percent) {
-
-    }
 }

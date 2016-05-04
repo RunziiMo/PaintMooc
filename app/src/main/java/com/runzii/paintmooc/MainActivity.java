@@ -1,61 +1,54 @@
 package com.runzii.paintmooc;
 
 import android.app.Activity;
-import android.app.Dialog;
 import android.content.Intent;
-import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.ParcelFileDescriptor;
-import android.provider.OpenableColumns;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.app.FragmentManager;
 import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.Window;
 import android.widget.ImageView;
-import android.widget.Toast;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
-import com.afollestad.materialdialogs.MaterialDialog;
+import com.bumptech.glide.Glide;
 import com.qiniu.android.http.ResponseInfo;
 import com.qiniu.android.storage.UpCancellationSignal;
 import com.qiniu.android.storage.UpCompletionHandler;
 import com.qiniu.android.storage.UpProgressHandler;
-import com.qiniu.android.utils.StringMap;
-import com.runzii.paintmooc.http.HttpCallBack;
-import com.runzii.paintmooc.http.HttpUtils;
-import com.runzii.paintmooc.http.ModelConstants;
-import com.runzii.paintmooc.model.UploadToken;
-import com.runzii.paintmooc.ui.painter.fragments.base.AvtivityBase;
-import com.runzii.paintmooc.utils.QiNiu;
-import com.runzii.paintmooc.utils.log.Log;
-import com.squareup.picasso.Picasso;
+import com.runzii.paintmooc.http.HttpMethods;
+import com.runzii.paintmooc.manage.AppPreferences;
+import com.runzii.paintmooc.ui.LoginActivity;
+import com.runzii.paintmooc.ui.base.ActivityBase;
+import com.runzii.paintmooc.utils.UploadUtils;
+import com.runzii.paintmooc.utils.Toasts;
 
 import org.json.JSONObject;
 
-import java.io.FileDescriptor;
-import java.io.IOException;
+import butterknife.BindView;
+import butterknife.OnClick;
+import rx.Subscriber;
 
-import butterknife.Bind;
 
+public class MainActivity extends ActivityBase implements UpCancellationSignal, UpCompletionHandler, UpProgressHandler {
 
-public class MainActivity extends AvtivityBase implements UpCancellationSignal, UpCompletionHandler, UpProgressHandler {
-
-    @Bind(R.id.iv_main)
+    @BindView(R.id.iv_main)
     ImageView iv;
-
+    @BindView(R.id.fab)
+    FloatingActionButton fab;
+    @BindView(R.id.upload_progress)
+    ProgressBar progressBar;
+    @BindView(R.id.tv_videoname)
+    TextView videoname;
     // A request code's purpose is to match the result of a "startActivityForResult" with
     // the type of the original request.  Choose any value.
     private static final int READ_REQUEST_CODE = 1337;
 
-    public static final String TAG = "StorageClientFragment";
+    public static final String TAG = "MainActivity";
 
     public static Uri uri = null;
 
@@ -68,43 +61,45 @@ public class MainActivity extends AvtivityBase implements UpCancellationSignal, 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        if (TextUtils.isEmpty(AppPreferences.getInstance().getAuth())) {
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish();
+        }
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        uploadDialog =
-                new MaterialDialog.Builder(this).
-                        title("正在上传").
-                        content("上传进度").
-                        progress(false, 100, showMinMax).
-                        build();
+    }
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-                HttpUtils.GET(ModelConstants.QINIUTOKEN, MainActivity.this, new HttpCallBack<String>() {
+    @OnClick(R.id.fab)
+    void onClick(View view) {
+        if (uri == null) {
+            Toasts.show("未选择文件");
+            return;
+        }
+        HttpMethods.getInstance()
+                .getUploadToken(new Subscriber<String>() {
                     @Override
-                    public void onSuccess(String uploadToken) {
-                        if (uri != null) {
-                            Toast.makeText(MainActivity.this, "token = " + uploadToken, Toast.LENGTH_SHORT).show();
-                            QiNiu.PUT(uploadToken, uri, MainActivity.this, MainActivity.this, MainActivity.this);
-                        }
-                    }
-
-                    @Override
-                    public void onFailed(String reason) {
+                    public void onCompleted() {
 
                     }
 
                     @Override
-                    public void onError(int statusCode) {
-                        Toast.makeText(MainActivity.this, String.valueOf(statusCode), Toast.LENGTH_SHORT).show();
+                    public void onError(Throwable e) {
+                        e.printStackTrace();
+                        AppPreferences.getInstance().clearAll();
                     }
-                });
-            }
-        });
+
+                    @Override
+                    public void onNext(String s) {
+//                        Toasts.show(s);
+                        uploadFile(s);
+                    }
+                }, AppPreferences.getInstance().getAuth());
+    }
+
+    public void uploadFile(String token) {
+        UploadUtils.PUT(token, uri, this, this, this);
     }
 
     @Override
@@ -146,14 +141,13 @@ public class MainActivity extends AvtivityBase implements UpCancellationSignal, 
         // If one wanted to search for ogg vorbis files, the type would be "audio/ogg".
         // To search for all documents available via installed storage providers, it would be
         // "*/*".
-        intent.setType("image/*");
+        intent.setType("video/*");
 
         startActivityForResult(intent, READ_REQUEST_CODE);
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent resultData) {
-        Log.i(TAG, "Received an \"Activity Result\"");
         // The ACTION_OPEN_DOCUMENT intent was sent with the request code READ_REQUEST_CODE.
         // If the request code seen here doesn't match, it's the response to some other intent,
         // and the below code shouldn't run at all.
@@ -166,7 +160,7 @@ public class MainActivity extends AvtivityBase implements UpCancellationSignal, 
             if (resultData != null) {
                 uri = resultData.getData();
                 Log.i(TAG, "Uri: " + uri.toString());
-                Picasso.with(this).load(uri).into(iv);
+                Glide.with(this).load(uri).into(iv);
                 this.uri = uri;
             }
         }
@@ -179,27 +173,12 @@ public class MainActivity extends AvtivityBase implements UpCancellationSignal, 
 
     @Override
     public void complete(String key, ResponseInfo info, JSONObject response) {
-
-        uploadDialog.setContent(response.toString());
-        Toast.makeText(this, "上传完成", Toast.LENGTH_LONG).show();
+        Log.d(TAG,info.toString());
     }
-
-    // Create and show a non-indeterminate dialog with a max value of 150
-// If the showMinMax parameter is true, a min/max ratio will be shown to the left of the seek bar.
-    boolean showMinMax = true;
-
-    private MaterialDialog uploadDialog;
 
     @Override
     public void progress(String key, double percent) {
-
-        if (!uploadDialog.isShowing()) {
-            uploadDialog.show();
-        }
-
-        uploadDialog.setProgress((int) (100 * percent));
-
+        progressBar.setProgress((int) (percent * 100));
     }
-
 
 }

@@ -1,4 +1,5 @@
-package com.runzii.paintmooc.ui.painter.fragments;/*
+package com.runzii.paintmooc.ui.fragments;
+/*
 * Copyright (C) 2012 The Android Open Source Project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,12 +29,12 @@ import android.provider.OpenableColumns;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.Window;
 import android.widget.ImageView;
 
 import com.runzii.paintmooc.R;
-import com.runzii.paintmooc.utils.log.Log;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
