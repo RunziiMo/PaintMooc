@@ -13,6 +13,7 @@ import okhttp3.ResponseBody;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
+import rx.Observable;
 import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Func1;
@@ -52,17 +53,15 @@ public class HttpMethods {
 
     /**
      * 获取基本认证的token,用于一些请求
-     *
-     * @param subscriber 由调用者传过来的观察者对象
+     *  @param subscriber 由调用者传过来的观察者对象
      * @param phone
      * @param password
      */
-    public void getAuthToken(Subscriber<AuthToken> subscriber, String phone, String password) {
-        apiService.getAuthToken(base_authorization, phone, password, "password")
+    public Observable<AuthToken> getAuthToken(String phone, String password) {
+        return apiService.getAuthToken(base_authorization, phone, password, "password")
                 .subscribeOn(Schedulers.io())
                 .unsubscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(subscriber);
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     public void getUploadToken(Subscriber<String> subscriber, String accessToken) {

@@ -26,6 +26,7 @@ import com.runzii.paintmooc.ui.base.ActivityBase;
 import butterknife.BindView;
 import rx.Observable;
 import rx.Subscriber;
+import rx.functions.Action1;
 
 /**
  * A login screen that offers login via email/password.
@@ -122,27 +123,22 @@ public class LoginActivity extends ActivityBase {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            Subscriber<AuthToken> subscriber = new Subscriber<AuthToken>() {
+            login = HttpMethods.getInstance().getAuthToken(phone, password);
+            login.subscribe(new Action1<AuthToken>() {
                 @Override
-                public void onCompleted() {
-
-                }
-
-                @Override
-                public void onError(Throwable e) {
-                    e.printStackTrace();
-                    showProgress(false);
-                }
-
-                @Override
-                public void onNext(AuthToken authToken) {
+                public void call(AuthToken authToken) {
                     AppPreferences.getInstance().setAuth("bearer " + authToken.getAccess_token());
                     startActivity(new Intent(LoginActivity.this, MainActivity.class));
                     showProgress(false);
                     finish();
                 }
-            };
-            HttpMethods.getInstance().getAuthToken(subscriber, phone, password);
+            }, new Action1<Throwable>() {
+                @Override
+                public void call(Throwable throwable) {
+                    throwable.printStackTrace();
+                    showProgress(false);
+                }
+            });
         }
     }
 

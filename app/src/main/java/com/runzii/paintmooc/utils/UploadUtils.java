@@ -29,7 +29,9 @@ public class UploadUtils {
             uploadManager = new UploadManager();
         }
         Map<String, String> params = new HashMap<>();
+        //该视频的课程id,必须
         params.put("x:cid", "2");
+        //视频的名称，必须
         params.put("x:videoname", "操逼课之如何插入");
         UploadOptions options = new UploadOptions(params, null, false, progressHandler, signal);
         uploadManager.put(FileUtils.getRealPathFromURI(uri), null, token,
